@@ -1,33 +1,38 @@
-import json
-import uuid
-
 import streamlit as st
 import requests
 from requests.auth import HTTPBasicAuth
 
-from utils import get_file_id
+CLIENT_ID = st.secrets['CLIENT_ID']
+SECRET = st.secrets['SECRET']
 
-CLIENT_ID = st.secrets["CLIENT_ID"]
-SECRET = st.secrets["SECRET"]
+# curl -L -X POST 'https://ngw.devices.sberbank.ru:9443/api/v2/oauth' \
+# -H 'Content-Type: application/x-www-form-urlencoded' \
+# -H 'Accept: application/json' \
+# -H 'RqUID: ee5e29f9-22f1-429b-808d-4c9110df93cd' \
+# -H 'Authorization: Basic <Authorization key>' \
+# --data-urlencode 'scope=GIGACHAT_API_PERS'
 
-def get_access_token() -> str:
+def get_access_token():
     url = "https://ngw.devices.sberbank.ru:9443/api/v2/oauth"
     headers = {
         'Content-Type': 'application/x-www-form-urlencoded',
         'Accept': 'application/json',
-        'RqUID': "ee5e29f9-22f1-429b-808d-4c9110df93cd",
+        'RqUID': 'dd94ede1-310f-482c-af6c-efa342e2ab89',
     }
     payload = {"scope": "GIGACHAT_API_PERS"}
+
     res = requests.post(
-        url=url,
+        url,
         headers=headers,
         auth=HTTPBasicAuth(CLIENT_ID, SECRET),
         data=payload,
-        verify=False,
+        verify=False
     )
-    access_token = res.json()["access_token"]
+    try:
+        access_token = res.json()['access_token']
+    except Exception as e:
+        raise RuntimeError(f"Не удалось получить токен: {e}")
     return access_token
-
 
 def get_image(file_id: str, access_token: str):
     url = f"https://gigachat.devices.sberbank.ru/api/v1/files/{file_id}/content"
@@ -44,29 +49,19 @@ def get_image(file_id: str, access_token: str):
 
 def send_prompt(msg: str, access_token: str):
     url = "https://gigachat.devices.sberbank.ru/api/v1/chat/completions"
-
-    payload = json.dumps({
-        "model": "GigaChat-Pro",
+    payload = {
+        "model": 'GigaChat',
         "messages": [
-            {
-                "role": "user",
-                "content": msg,
-            }
+            {"role": "user",
+             "content": msg}
         ],
-    })
-    headers = {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'Authorization': f'Bearer {access_token}'
+        "stream": False,
+        "update_interval": 0
     }
-
-    response = requests.post(url, headers=headers, data=payload, verify=False)
-    return response.json()["choices"][0]["message"]["content"]
-
-
-def sent_prompt_and_get_response(msg: str, access_token: str):
-    res = send_prompt(msg, access_token)
-    data, is_image = get_file_id(res)
-    if is_image:
-        data = get_image(file_id=data, access_token=access_token)
-    return data, is_image
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "Authorization": f"Bearer {access_token}"
+    }
+    resp = requests.post(url, headers=headers, json=payload, verify=False)
+    return resp.json()['choices'][0]['message']['content']

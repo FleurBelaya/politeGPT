@@ -69,19 +69,14 @@ def send_prompt(msg: str, access_token: str):
     return resp.json()['choices'][0]['message']['content']
 
 
-def send_prompt_and_get_responce():
-    pass
 
 
 # main.py
 
-from profanity_check import predict
 import streamlit as st
 
 st.title('PoliteGPT')
 
-def is_rude(msg: str) -> bool:
-    return predict([msg])[0] == 1
 
 if "access_token" not in st.session_state:
     try:
